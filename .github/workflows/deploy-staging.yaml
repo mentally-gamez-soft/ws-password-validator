@@ -24,11 +24,11 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        version: ['3.11','3.12','3.13']
+        version: ['3.11','3.12']
 
     steps:
     - uses: actions/checkout@v3
-    - name: Set up Python 3.11 to 3.13
+    - name: Set up Python 3.11 to 3.12
       uses: actions/setup-python@v3
       with:
         python-version: ${{matrix.version}}
@@ -68,7 +68,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        version: ['3.11','3.12','3.13']
+        version: ['3.11','3.12']
     needs: build
     environment: staging
     steps:
@@ -93,7 +93,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        version: ['3.11','3.12','3.13']
+        version: ['3.11','3.12']
     needs: [build,deploy-staging]
     steps:
       - name: Create release tag
