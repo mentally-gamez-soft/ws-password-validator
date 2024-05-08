@@ -1,7 +1,7 @@
 """Validate the payload for the API."""
 
 def __is_payload_empty(payload):
-    return True if payload else False
+    return True if payload is not None else False
 
 
 def __has_password(payload):

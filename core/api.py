@@ -8,13 +8,13 @@ from core.service.payload_validator import is_valid_payload
 urls_blueprint = Blueprint("api_urls", __name__)
 
 
-@urls_blueprint.route("/", methods=["GET"])
+@urls_blueprint.route("/password-scoring/api/v1.0", methods=["GET"])
 def default():
     """Define a test page to check the webservice status."""
     return "Welcome to this service for scoring a password.", 200
 
 
-@urls_blueprint.route("/score", methods=["POST"])
+@urls_blueprint.route("/password-scoring/api/v1.0/score", methods=["POST"])
 def score():
     """Define the endpoint to the scoring password API.
 

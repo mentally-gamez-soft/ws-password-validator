@@ -2,8 +2,8 @@
 
 import os
 
-from config import app
 from core.api import urls_blueprint
+from core.configuration.flask.flask_config import app
 from core.swagger_docs.swagger_config import SWAGGER_URL, swaggerui_blueprint
 
 # blueprints
@@ -16,5 +16,5 @@ if __name__ == "__main__":
     app.run(
         host=os.environ.get("APP_INCOMING_CONNECTIONS", "127.0.0.1"),
         port=port,
-        debug=True,
+        debug=False,
     )
