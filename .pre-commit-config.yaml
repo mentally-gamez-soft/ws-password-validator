@@ -1,0 +1,23 @@
+repos:
+- repo: https://github.com/PyCQA/bandit
+  rev: 1.7.5
+  hooks:
+  - id: bandit
+
+- repo: https://github.com/PyCQA/pydocstyle
+  rev: 6.3.0
+  hooks:
+  - id: pydocstyle
+
+- repo: https://github.com/psf/black
+  rev: stable
+  hooks:
+  - id: black
+    args: ["--preview","--config","pyproject.toml"]
+
+- repo: https://github.com/PyCQA/isort
+  rev: 5.12.0
+  hooks:
+  - id: isort
+    exclude: maintenance-scripts/
+    args: ["--profile=black", --line-length=79]
