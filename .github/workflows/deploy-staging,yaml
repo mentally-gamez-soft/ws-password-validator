@@ -1,0 +1,116 @@
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
+name: WebService to test the strength of a password
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+
+    runs-on: ${{matrix.os}}
+    env:
+      DOCKER_USER: ${{secrets.DOCKER_USERNAME}}
+      DOCKER_PASS: ${{secrets.DOCKER_PASSWORD}}
+      DOCKER_IMG_NAME: ${{secrets.DOCKER_IMAGE_NAME}}:ws-password-scoring-
+      PASSWORD_SCORING_APP: ${{secrets.PASSWORD_SCORING_APP}}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        version: ['3.11','3.12','3.13']
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python 3.11 to 3.13
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{matrix.version}}
+    - name: Install dependencies with pip-compile tool
+      run: |
+        python -m pip install --upgrade pip
+        pip install pip-tools
+        pip-compile requirements.in
+        pip install flake8 pytest
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    - name: Lint with flake8
+      run: |
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    - name: docker build application image
+      run: |
+        docker build --build-arg version_number=$DOCKER_IMG_VERSION -t $DOCKER_USER/$DOCKER_IMG_NAME$DOCKER_IMG_VERSION .
+      env:
+        DOCKER_IMG_VERSION: 0.0.1c
+    - name: docker login
+      run: |
+        docker login -u $DOCKER_USER -p $DOCKER_PASS
+    - name: docker push application image
+      run: |
+        docker push $DOCKER_USER/$DOCKER_IMG_NAME$DOCKER_IMG_VERSION   
+      env:
+          DOCKER_IMG_VERSION: 0.0.1c  
+  deploy-staging:
+    name: deploy application to staging environment
+    runs-on: ${{matrix.os}}
+    env:
+      DOCKER_USER: ${{secrets.DOCKER_USERNAME}}
+      DOCKER_PASS: ${{secrets.DOCKER_PASSWORD}}
+      PASSWORD_SCORING_APP: ${{secrets.PASSWORD_SCORING_APP}}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        version: ['3.11','3.12','3.13']
+    needs: build
+    environment: staging
+    steps:
+      - name: deploy application image on staging environment
+        run: |
+          echo "${{ secrets.SSH_DEV_SERVER_CONTABO }}" > ~/work/_temp/dev_server_rsa
+          chmod 400 ~/work/_temp/dev_server_rsa
+          ssh -o StrictHostKeyChecking=no -i ~/work/_temp/dev_server_rsa ${{secrets.SERVER_ADMIN_INTEG}}@${{secrets.SERVER_HOSTNAME_INTEG}} "
+            docker login -u $DOCKER_USER -p $DOCKER_PASS && 
+            source .profile &&
+            cd $PASSWORD_SCORING_APP &&
+            ./stop_container.sh &&
+            ./start_container.sh"
+          rm -f ~/work/_temp/dev_server_rsa
+          rm -rf ~/work/_temp
+
+  create-release:
+    name: Create release
+    runs-on: ${{matrix.os}}
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        version: ['3.11','3.12','3.13']
+    needs: [build,deploy-staging]
+    steps:
+      - name: Create release tag
+        id: create-release-tag        
+        run: echo "tag_name=r-$(printf %04d $GITHUB_RUN_NUMBER)" >> $GITHUB_OUTPUT
+      - name: Create draft release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.create-release-tag.outputs.tag_name }}
+          name: Release ${{ steps.create-release-tag.outputs.tag_name }}
+          body: |
+            ## Info
+            Commit ${{ github.sha }} was deployed to `staging`. [See code diff](${{ github.event.compare }}).
+
+            It was initialized by [${{ github.event.sender.login }}](${{ github.event.sender.html_url }}).
+
+            ## How to validate?
+            In order to validate this to prod, edit the draft and press **"Publish release"**.
+          draft: true
+
