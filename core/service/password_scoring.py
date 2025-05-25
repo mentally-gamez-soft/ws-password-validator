@@ -1,7 +1,39 @@
 """Process the main algorithms for scoring a password."""
 
+import enum
+import logging
+
 import enpass as ep
 from password_validator import PasswordValidator
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_MINIMUM_SCORE = 62
+
+
+class ColorScore(enum.Enum):
+    """Declare the enumaration for correspondance between a score and a color."""
+
+    black = (0, DEFAULT_MINIMUM_SCORE - 1)
+    crimson = (DEFAULT_MINIMUM_SCORE, 85)
+    coral = (86, 95)
+    yellow = (96, 105)
+    yellowgreen = (106, 115)
+    lightgreen = (116, 155)
+    lime = (156, 1000)
+
+    @staticmethod
+    def get_color_from_score(score: float) -> str:
+        """Retrieve the color that binds to this scoring value.
+
+        Args:
+            score (float): The scoring value of a password.
+
+        Returns:
+            str: The color that represents this score.
+        """
+        l = [c.name for c in ColorScore if int(score) in range(*c.value)]
+        return l[0]
 
 
 class Singleton(type):
@@ -92,25 +124,25 @@ class PasswordConfig:
     def __init__(
         self,
         min_characters: int = 10,
-        max_characters: int = 100,
+        max_characters: int = 40,
         has_uppercase: bool = True,
         has_lowercase: bool = True,
         has_digits: bool = True,
         has_symbols: bool = True,
         has_spaces: bool = False,
-        min_score: int = 70,
+        min_score: int = DEFAULT_MINIMUM_SCORE,
     ) -> None:
         """Instanciate an object of type PasswordConfig.
 
         Args:
             min_characters (int, optional): The minimum characters length of the password. Defaults to 10.
-            max_characters (int, optional): The maximum characters length of the password. Defaults to 100.
+            max_characters (int, optional): The maximum characters length of the password. Defaults to 40.
             has_uppercase (bool, optional): Indicates if a uppercased character is needed for this password. Defaults to True.
             has_lowercase (bool, optional): Indicates if a lowercased character is needed for this password. Defaults to True.
             has_digits (bool, optional): Indicates if a digit character is needed for this password. Defaults to True.
             has_symbols (bool, optional): Indicates if a symbol character is needed for this password. Defaults to True.
             has_spaces (bool, optional): Indicates if a space character is needed for this password. Defaults to False.
-            min_score (int, optional): Determines if the calculated final score strength is sufficient or not. Defaults to 70.
+            min_score (int, optional): Determines if the calculated final score strength is sufficient or not. Defaults to 65.
         """
         self.__schema = PasswordValidator()
         self.__min_entropy = min_score
@@ -180,17 +212,18 @@ class PasswordConfig:
         if not self.__schema.validate(password):
             message_for_schema = (
                 "The password is not meeting the length and/or characters"
-                " requirements !"
+                " requirements!"
             )
             status = False
 
         if not ep.validate(score, self.__min_entropy):
-            message_for_entropy = "The strength of the password is too low !"
+            message_for_entropy = "The strength of the password is too low!"
             status = False
-
+        logger.info("Score: {}".format(score))
         return {
             "status": status,
             "score": score,
+            "color": ColorScore.get_color_from_score(score),
             "message_password": message_for_schema,
             "message_score": message_for_entropy,
         }

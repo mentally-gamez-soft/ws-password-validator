@@ -7,8 +7,23 @@ from pathlib import Path
 from typing import Union, get_type_hints
 
 import dotenv_vault.main as vault
+from dotenv import dotenv_values
 from dotenv import load_dotenv as std_load_dotenv
 from dotenv_vault import load_dotenv
+
+DOCKER_VAR_ENVS = (
+    "APP_ENV",
+    "APP_NAME",
+    "APP_VERSION",
+    "SECRET_KEY",
+    "CORS_ORIGINS_ROUTE_WELCOME",
+    "CORS_ORIGINS_ROUTE_SCORING",
+    "LOG_PATH",
+    "LOG_FILENAME",
+    "UPLOAD_FOLDER",
+    "MAX_CONTENT_LENGTH",
+    "CORS_HEADER",
+)
 
 
 class ConfigurationNotFoundException(Exception):
@@ -46,7 +61,7 @@ class EnvLoader:
                 "The .env.keys file does not exists in environment."
             )
         elif (
-            self.env["APP_ENV"] == "integ"
+            self.env["APP_ENV"] in ("integ", "staging")
             and "DOTENV_KEY_STAGING" not in self.env
         ):
             raise ConfigurationNotFoundException(
@@ -87,7 +102,7 @@ class EnvLoader:
             self.env["SIMULATION"] = "1"
         elif self.env["APP_ENV"] in ("dev"):
             self.env["DOTENV_KEY"] = self.env.get("DOTENV_KEY_DEV")
-        elif self.env["APP_ENV"] == "integ":
+        elif self.env["APP_ENV"] in ("integ", "staging"):
             self.env["DOTENV_KEY"] = self.env.get("DOTENV_KEY_STAGING")
         elif self.env["APP_ENV"] == "prod":
             self.env["DOTENV_KEY"] = self.env.get("DOTENV_KEY_PROD")
@@ -104,7 +119,7 @@ class EnvLoader:
             dot_env_vault = None
             if self.env["APP_ENV"] in ("dev", "local.dev"):
                 dot_env_vault = self.env["DOTENV_VAULT_DEV"]
-            elif self.env["APP_ENV"] == "integ":
+            elif self.env["APP_ENV"] in ("integ", "staging"):
                 dot_env_vault = self.env["DOTENV_VAULT_STAGING"]
             elif self.env["APP_ENV"] == "prod":
                 dot_env_vault = self.env["DOTENV_VAULT_PROD"]
@@ -152,9 +167,13 @@ class AppConfig:
 
     HOSTNAME: str
     APP_INCOMING_CONNECTIONS: str = "127.0.0.1"
-    DOCKER_REGISTRY: str
     DEBUG: bool = False
     APP_ENV: str = "dev"
+    APP_ENV_LOCAL: str = "local"
+    APP_ENV_TESTING: str = "test"
+    APP_ENV_DEVELOPMENT: str = "development"
+    APP_ENV_PRODUCTION: str = "production"
+    APP_ENV_STAGING: str = "integ"
 
     def __init__(self, env):
         """
@@ -203,3 +222,47 @@ class AppConfig:
             dict: The key-value pair of environment variables for the application.
         """
         return self.__dict__
+
+
+def load_env_local_dev() -> dict:
+    """Get the env vars when working in the local environment.
+
+    Returns:
+        dict: the env vars for the local environment.
+    """
+    from collections import OrderedDict
+
+    std_load_dotenv()
+    return dict(
+        (k, dict(v) if isinstance(v, OrderedDict) else v)
+        for k, v in dotenv_values().items()
+    )
+
+
+def load_env_docker() -> dict:
+    """Retrieve the env variables when the application is running in the docker container.
+
+    Returns:
+        dict: the env vars for the docker container.
+    """
+    env_docker = {}
+    for key in [k for k in os.environ.keys() if k in DOCKER_VAR_ENVS]:
+        env_docker[key] = os.environ.get(key)
+
+    return env_docker
+
+
+def load_env_variables() -> dict:
+    """Load all the env variables necessary to the application.
+
+    Returns:
+        dict: the env variables to configure the flask app.
+    """
+    env_loader = EnvLoader()
+    env_loader.get_env_config()
+    config = AppConfig(env_loader.env)
+
+    if config.APP_ENV != "local.dev":
+        return {**config.get_application_env(), **load_env_docker()}
+    else:
+        return {**config.get_application_env(), **load_env_local_dev()}
