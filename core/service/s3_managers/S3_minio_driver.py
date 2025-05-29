@@ -1,12 +1,15 @@
 """Define the concrete service S3 with Minio provider."""
 
 import io
+import logging
 import os
 
 from minio import Minio
 
 from core.common.file_tools import create_compressed_copy_of_file
 from core.service.s3_managers.S3_driver_interface import S3DriverInterface
+
+logger = logging.getLogger(__name__)
 
 
 class S3MinioDriver(S3DriverInterface):
@@ -58,6 +61,10 @@ class S3MinioDriver(S3DriverInterface):
         found: bool = self.session.bucket_exists(bucket_name)
         if not found:
             self.session.make_bucket(bucket_name)  # Make bucket if not exist.
+        else:
+            logger.info(
+                "The bucket {} is already existing.".format(bucket_name)
+            )
         return True
 
     def upload_file_from_memory(
@@ -133,4 +140,7 @@ class S3MinioDriver(S3DriverInterface):
             )
             return True
         else:
+            logger.info(
+                "The file {} does not exist.".format(filename_with_path)
+            )
             return False

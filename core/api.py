@@ -133,12 +133,14 @@ def load_user_from_request(request) -> User | None:
         request
     )  # first, try to login using the api_key passed in as payload
     if load_result["status"]:
+        logger.info("User re-logged in - API key found in payload")
         return load_result["user"]
 
     load_result = login_with_api_key_in_url_args(
         request
     )  # next, try to login using the api_key url arg
     if load_result["status"]:
+        logger.info("User re-logged in - API key found in url args")
         return load_result["user"]
 
     load_result = login_with_basic_auth_header(
@@ -274,6 +276,9 @@ def bulk_scores():
     Returns:
         response: a payload indicating that the file was processed in the case of a POST request. A redirect to the upload file form in case of a GET request.
     """
+    logger.info(
+        "Call bulk scores endpoint - headers {}".format(request.headers)
+    )
     file_form = UploadFileForm()
     allowed_extensions = set(
         current_app.config.get("ALLOWED_FILE_EXTENSIONS").split(" ")
@@ -321,7 +326,6 @@ def bulk_scores():
                     200,
                 )
 
-    logger.info("Call of s3 endpoint - headers {}".format(request.headers))
     return render_template("file_upload.html", form=file_form)
 
 
@@ -334,6 +338,9 @@ def s3_bulk_scores():
     Returns:
         response: a payload indicating that the file was processed in the case of a POST request. A redirect to the upload file form in case of a GET request.
     """
+    logger.info(
+        "Call S3 bulk scores endpoint - headers {}".format(request.headers)
+    )
     file_form = UploadFileForm()
     allowed_extensions = set(
         current_app.config.get("ALLOWED_FILE_EXTENSIONS").split(" ")
@@ -388,7 +395,6 @@ def s3_bulk_scores():
                     ),
                     200,
                 )
-    logger.info("Call of s3 endpoint - headers {}".format(request.headers))
     return render_template("file_upload.html", form=file_form)
 
 
@@ -402,6 +408,9 @@ def init_session_token_of_user():
     Returns:
         response: a payload indicating the API token key of the user if the email was correctly input. An error otherwise.
     """
+    logger.info(
+        "Call init API token endpoint - headers {}".format(request.headers)
+    )
     data: dict = request.json
 
     if not is_valid_payload(PAYLOAD_TYPE_EMAIL, data):
@@ -458,6 +467,9 @@ def renew_token_for_user():
     Returns:
         response: a payload wit hthe renewed API Token key if the user exists. An error otherwise.
     """
+    logger.info(
+        "Call re-new API token endpoint - headers {}".format(request.headers)
+    )
     data: dict = request.json
 
     token = data.get("api_key")
@@ -498,6 +510,11 @@ def test_use_api():
     Returns:
         response: a payload with the API token key or an error message if the API token key reached its max usage.
     """
+    logger.info(
+        "Call sanity check usage for API token endpoint - headers {}".format(
+            request.headers
+        )
+    )
     data: dict = request.json
     token = data.get("api_key")
     return (

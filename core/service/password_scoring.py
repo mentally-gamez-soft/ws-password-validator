@@ -219,7 +219,7 @@ class PasswordConfig:
         if not ep.validate(score, self.__min_entropy):
             message_for_entropy = "The strength of the password is too low!"
             status = False
-        logger.info("Score: {}".format(score))
+        logger.info("Password score: {}".format(score))
         return {
             "status": status,
             "score": score,

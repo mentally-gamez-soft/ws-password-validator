@@ -60,7 +60,7 @@ class S3BotoDriver(S3DriverInterface):
             self.session.create_bucket(Bucket=bucket_name)
         except:
             logger.info(
-                "The bucket {} is already existing ".format(bucket_name)
+                "The bucket {} is already existing.".format(bucket_name)
             )
         return True
 
@@ -140,4 +140,7 @@ class S3BotoDriver(S3DriverInterface):
             )
             return True
         else:
+            logger.info(
+                "The file {} does not exist.".format(filename_with_path)
+            )
             return False
