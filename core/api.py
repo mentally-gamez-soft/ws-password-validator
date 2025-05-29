@@ -4,15 +4,7 @@ import logging
 import os
 from functools import wraps
 
-from flask import (
-    Blueprint,
-    abort,
-    current_app,
-    jsonify,
-    redirect,
-    render_template,
-    request,
-)
+from flask import Blueprint, current_app, jsonify, render_template, request
 from flask_login import current_user, login_user
 from flask_wtf.csrf import generate_csrf
 from minio import Minio
@@ -25,6 +17,7 @@ from core.auth import (
     login_with_basic_auth_header,
     login_with_id,
 )
+from core.celery_tasks import multiple_password_scoring
 from core.forms import UploadFileForm
 from core.models import User
 from core.service.file_validator import expected_file
@@ -34,6 +27,7 @@ from core.service.payload_validator import (
     PAYLOAD_TYPE_SCORING,
     is_valid_payload,
 )
+from core.service.s3_managers.S3_driver_interface import S3DriverInterface
 
 logger = logging.getLogger(__name__)
 
@@ -154,6 +148,7 @@ def load_user_from_request(request) -> User | None:
 
 
 @api_bp.route(ROUTE_WELCOME, methods=["GET"])
+@api_bp.route(ROUTE_WELCOME + "/", methods=["GET"])
 def default():
     """Define a test endpoint to check the webservice status."""
     logger.info(
@@ -219,36 +214,55 @@ def score():
         )
 
 
-def upload_object_to_s3_minio(filename, data, length) -> bool:
-    """Process a file to upload it to a S3 Minio service.
+def upload_file_to_s3(
+    s3_bucket_name: str,
+    file_path: str,
+    file_name: str,
+    file_data,
+    file_size: int,
+    s3_bucket_destination_name: str = None,
+    from_memory: bool = False,
+    driver: str = "minio",
+    compress_data: bool = False,
+):
+    """Send a file to the S3 service.
 
     Args:
-        filename (str): the name of the file with its extension.
-        data (file): the file itself.
-        length (int): the size of the file to upload.
-
-    Returns:
-        bool: Return always True.
+        s3_bucket_name (str): The destination bucket name for the file.
+        file_path (str): In case of a file on the system: indicate the path to the file.
+        file_name (str): In case of a file on the system: indicate the name of the file.
+        file_data (_type_): the data to write into the file on the S3 repo.
+        file_size (int): The size of the data to store (needed in case of a minio S3 provider).
+        s3_bucket_destination_name (str, optional): Thje sub-repository(ies) in the destination bucket. Defaults to None.
+        from_memory (bool, optional): Indicate if the file is in-memory (True), or on the file system (False). Defaults to False.
+        driver (str, optional): Indicate the provider. Currently 2 possibilities aws or minio. Defaults to "minio".
+        compress_data (bool, optional): Indicate if the data should be stored compressed or not. Defaults to False.
     """
-    client = Minio(
-        ":".join(
-            [
-                current_app.config.get("S3_MINIO_HOST"),
-                current_app.config.get("S3_MINIO_API_PORT"),
-            ]
-        ),
-        current_app.config.get("S3_MINIO_USER"),
-        current_app.config.get("S3_MINIO_PASSWORD"),
-        secure=False,
+    driverManager = S3DriverInterface.get_instance(driver)
+    driverManager.connect(
+        hostname=current_app.config.get("S3_MINIO_HOST"),
+        port=current_app.config.get("S3_MINIO_API_PORT"),
+        user=current_app.config.get("S3_MINIO_USER"),
+        password=current_app.config.get("S3_MINIO_PASSWORD"),
     )
-
-    bucket_name = current_app.config.get("S3_MINIO_BUCKET_NAME")
-    found = client.bucket_exists(bucket_name)
-    if not found:
-        client.make_bucket(bucket_name)  # Make bucket if not exist.
-
-    client.put_object(bucket_name, filename, data, length)
-    return True
+    driverManager.create_bucket(current_app.config.get("S3_MINIO_BUCKET_NAME"))
+    if from_memory:
+        driverManager.upload_file_from_memory(
+            filename=file_name,
+            bucket_name=s3_bucket_name,
+            data=file_data,
+            bucket_destination_path=s3_bucket_destination_name,
+            compress=compress_data,
+            length=file_size,
+        )
+    else:
+        driverManager.upload_file_from_disk(
+            path=file_path,
+            filename=file_name,
+            bucket_name=s3_bucket_name,
+            bucket_destination_path=s3_bucket_destination_name,
+            compress=compress_data,
+        )
 
 
 @api_bp.route(ROUTE_BULK_PASSWORD_SCORING, methods=["GET", "POST"])
@@ -268,7 +282,8 @@ def bulk_scores():
 
     if request.method == "POST":
         if file_form.validate_on_submit():
-            file_data = file_form.file.data
+            file = file_form.file
+            file_data = file.data
 
             if file_data.filename == "":
                 return (
@@ -283,16 +298,17 @@ def bulk_scores():
                     200,
                 )
 
-            if file_form.file and expected_file(
-                file_data.filename, allowed_extensions
-            ):
+            if file and expected_file(file_data.filename, allowed_extensions):
                 filename = secure_filename(file_data.filename)
 
                 if not os.path.isdir(files_upload_directory):
                     os.mkdir(files_upload_directory)
 
+                l_passwords = file.raw_data[0].readlines()
+                multiple_password_scoring.delay(
+                    l_passwords
+                )  # Pass the calculation of scores to the async celery task.
                 file_data.save(os.path.join(files_upload_directory, filename))
-
                 return (
                     jsonify(
                         {
@@ -325,7 +341,10 @@ def s3_bulk_scores():
 
     if request.method == "POST":
         if file_form.validate_on_submit():
-            file_data = file_form.file.data
+            file = file_form.file
+            file_data = file.data
+            l_passwords = file.raw_data[0].readlines()
+
             if file_data.filename == "":
                 return (
                     jsonify(
@@ -339,12 +358,25 @@ def s3_bulk_scores():
                     200,
                 )
 
-            if file_form.file and expected_file(
-                file_data.filename, allowed_extensions
-            ):
+            if file and expected_file(file_data.filename, allowed_extensions):
                 filename = secure_filename(file_data.filename)
                 size = os.fstat(file_data.fileno()).st_size
-                upload_object_to_s3_minio(filename, file_data, size)
+                upload_file_to_s3(
+                    s3_bucket_name=current_app.config.get(
+                        "S3_MINIO_BUCKET_NAME"
+                    ),
+                    file_path=None,
+                    file_name=filename,
+                    file_data=b"".join(l_passwords),
+                    s3_bucket_destination_name=None,
+                    from_memory=True,
+                    driver="aws",  # "minio",
+                    file_size=size,
+                )
+
+                multiple_password_scoring.delay(
+                    l_passwords
+                )  # Pass the calculation of scores to the async celery task.
                 return (
                     jsonify(
                         {

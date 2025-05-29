@@ -12,6 +12,7 @@ from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
 
+from core.celery_init import celery_init_app
 from core.configuration.env.env_config import load_env_variables
 
 login_manager = LoginManager()
@@ -130,6 +131,10 @@ def create_app(test_config: dict = None) -> Flask:
     else:
         config = load_env_variables()
     app.config.from_mapping(config)
+    app.config["CELERY"] = {
+        "result_backend": app.config["CELERY_URL_RESULT"],
+        "broker_url": app.config["CELERY_URL_BROKER"],
+    }
 
     configure_logging(app)
 
@@ -138,6 +143,7 @@ def create_app(test_config: dict = None) -> Flask:
     db.init_app(app)
     migrate.init_app(app, db)
     csrf.init_app(app)
+    celery_init_app(app)
 
     from core.api import ROUTE_INIT_SESSION_TOKEN
 

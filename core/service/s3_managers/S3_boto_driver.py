@@ -6,7 +6,6 @@ import logging
 import os
 
 import boto3
-from typing_extensions import deprecated
 
 from core.common.file_tools import create_compressed_copy_of_file
 from core.service.s3_managers.S3_driver_interface import S3DriverInterface
@@ -65,7 +64,6 @@ class S3BotoDriver(S3DriverInterface):
             )
         return True
 
-    @deprecated("Can not be used yet")
     def upload_file_from_memory(
         self,
         filename: str,

@@ -4,7 +4,6 @@ import io
 import os
 
 from minio import Minio
-from typing_extensions import deprecated
 
 from core.common.file_tools import create_compressed_copy_of_file
 from core.service.s3_managers.S3_driver_interface import S3DriverInterface
@@ -61,7 +60,6 @@ class S3MinioDriver(S3DriverInterface):
             self.session.make_bucket(bucket_name)  # Make bucket if not exist.
         return True
 
-    @deprecated("Can not be used yet")
     def upload_file_from_memory(
         self,
         filename: str,

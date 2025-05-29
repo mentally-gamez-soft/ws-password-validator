@@ -17,11 +17,6 @@ def expected_file(filename: str, allowed_extensions: list) -> bool:
     Returns:
         bool: Returns true if the filename is correct. False otherwise.
     """
-    print(
-        "Verifying file: filename {} - extensions => {}".format(
-            filename, allowed_extensions
-        )
-    )
     return (
         "." in filename
         and filename.rsplit(".", 1)[1].lower() in allowed_extensions

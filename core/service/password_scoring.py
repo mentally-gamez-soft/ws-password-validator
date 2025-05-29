@@ -14,13 +14,13 @@ DEFAULT_MINIMUM_SCORE = 62
 class ColorScore(enum.Enum):
     """Declare the enumaration for correspondance between a score and a color."""
 
-    black = (0, DEFAULT_MINIMUM_SCORE - 1)
+    black = (0, DEFAULT_MINIMUM_SCORE)
     crimson = (DEFAULT_MINIMUM_SCORE, 85)
-    coral = (86, 95)
-    yellow = (96, 105)
-    yellowgreen = (106, 115)
-    lightgreen = (116, 155)
-    lime = (156, 1000)
+    coral = (85, 95)
+    yellow = (95, 105)
+    yellowgreen = (105, 115)
+    lightgreen = (115, 155)
+    lime = (155, 1000)
 
     @staticmethod
     def get_color_from_score(score: float) -> str:
