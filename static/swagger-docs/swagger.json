@@ -3,10 +3,11 @@
     "info": {
       "title": "Password validator and scoring",
       "description": "A webservice to control a password according to characteristics and get its entropy score.",
-      "version": "1.0"
+      "version": "1.1"
     },
+    "basePath": "/password-scoring/api/v1.0",
     "paths": {
-      "/password-scoring/api/v1.0": {
+      "/": {
           "get": {
             "description": "Sanity check to show service is up.",
             "produces": [
@@ -17,9 +18,51 @@
                 "description": "Successful operation"
               }
             }
-          },
-
-      "/password-scoring/api/v1.0/score": {
+          }
+        },
+     "/login": {
+        "post": {
+            "description": "Initialize a user session and gives back an API Token.",
+            "produces": [
+                "application/json"
+            ],
+            "parameters": [
+                {
+                    "name": "Email",
+                    "in": "body",
+                    "description": "JSON data for the endpoint",
+                    "required": true,
+                    "schema": {
+                        "$ref": "#/definitions/payload_login"
+                    }
+                }
+            ],
+            "responses": {
+                "200": {
+                    "description": "The user has been registered.",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "status": {
+                                "type": "boolean",
+                                "description": "Indicates the query succeeded."
+                            },
+                            "message": {
+                                "type": "string",
+                                "default": "Your API token has been created.",
+                                "description": "The message indicating that the new user registered successfully."
+                            },
+                            "api_key": {
+                                "type": "string",
+                                "description": "The returned API for the user."
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+      "/score": {
         "post": {
           "description": "The endpoint to calculate the strength of a password.",
           "consumes": [
@@ -102,9 +145,22 @@
       }        
     },
     "definitions": {
+      "payload_login": {
+        "type": "object",
+        "properties": {
+            "email": {
+                "type": "string",                
+                "description":"The email for a user to register."
+            }
+        }
+      },
       "payload_password": {
         "type": "object",
         "properties": {
+          "api_key": {
+                "type": "string",                
+                "description":"The API token of the user."
+            },
             "password": {
                 "type": "string",                
                 "description":"The password to score."
@@ -158,4 +214,3 @@
       }
     }
   }
-}

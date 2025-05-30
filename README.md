@@ -50,6 +50,10 @@
     1. Start the minio server
     2. Launch the flask local dev app
 
+## Launch celery command
+    celery -A make_celery worker -l info -P solo (windows)
+    celery -A make_celery worker -l info (unix)
+
 ## Documentation Swagger and Open API 
     
     Generate the documentation:
