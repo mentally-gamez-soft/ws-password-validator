@@ -1,4 +1,7 @@
 # ws-password-scoring API
+
+![Alt text](Architecture-Flask-Celery-RabbitMQ-Redis-v6.jpg)
+
     Simple web service to validate a password according to rules and strength.
     The default rules for a password are:
         - contains at least 1 digit
@@ -46,3 +49,22 @@
 ## Start the project in local dev
     1. Start the minio server
     2. Launch the flask local dev app
+
+## Documentation Swagger and Open API 
+    
+    Generate the documentation:
+    flask openapi write --format¡yaml openapi.yaml
+
+    The flask app needs the following envs:
+    API_TITLE="Library API"
+    API_VERSION="v1.0.0"
+    OPENAPI_VERSION="3.1.0"
+    OPENAPI_DESCRIPTION="A password scoring API"
+
+    Access the documentation:
+    http://127.0.0.1:
+
+- https://pypi.org/project/flask-smorest/ 
+- https://speakeasy.com/openapi/frameworks/flask 
+- https://pypi.org/project/flask-openapi3/ 
+- https://diptochakrabarty.medium.com/flask-python-swagger-for-rest-apis-6efdf0100bd7
