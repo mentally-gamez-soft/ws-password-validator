@@ -7,7 +7,6 @@ from functools import wraps
 from flask import Blueprint, current_app, jsonify, render_template, request
 from flask_login import current_user, login_user
 from flask_wtf.csrf import generate_csrf
-from minio import Minio
 from werkzeug.utils import secure_filename
 
 from core import csrf, login_manager
@@ -163,8 +162,9 @@ def default():
 
     return (
         jsonify(
-            "Welcome to this service for scoring a password. (version {})"
-            .format(API_VERSION)
+            "Welcome to this service for scoring a password. (version {})".format(
+                API_VERSION
+            )
         ),
         200,
         {

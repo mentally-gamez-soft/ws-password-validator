@@ -14,6 +14,7 @@ from flask_wtf.csrf import CSRFProtect
 
 from core.celery_init import celery_init_app
 from core.configuration.env.env_config import load_env_variables
+from core.swagger.swagger_config import SWAGGER_URL, swaggerui_blueprint
 
 login_manager = LoginManager()
 db = SQLAlchemy()
@@ -34,6 +35,7 @@ def register_blueprints(app):
     from .api import api_bp
 
     app.register_blueprint(api_bp)
+    app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
 
 
 def logging_formatter():
