@@ -117,7 +117,7 @@ jobs:
         # Extract the repository name from the github.repository context
         PROJECT_NAME=$(echo "${GITHUB_REPOSITORY}" | cut -d'/' -f2)
         echo "Project Name: $PROJECT_NAME"
-        docker push docker.io/$DOCKER_USER/$DOCKER_IMG_NAME${{ env.version }}       
+        docker push ${{secrets.DOCKER_USERNAME}}/${{secrets.DOCKER_IMAGE_NAME}}:ws-password-scoring-${{ env.version }}       
       env:
         GITHUB_REPOSITORY: ${{ github.repository }}
     # - name: docker build application image
