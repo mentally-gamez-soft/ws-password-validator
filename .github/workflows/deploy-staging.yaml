@@ -17,6 +17,7 @@ jobs:
 
     runs-on: ${{matrix.os}}
     env:
+      APPLICATION_NAME: ":ws-password-scoring-"
       DOCKER_USER: ${{secrets.DOCKER_USERNAME}}
       DOCKER_PASS: ${{secrets.DOCKER_PASSWORD}}
       DOCKER_IMG_NAME: ${{secrets.DOCKER_IMAGE_NAME}}:ws-password-scoring-
@@ -27,11 +28,27 @@ jobs:
         version: ['3.12']
 
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Get Latest Tag
+      id: get-latest-tag
+      uses: actions-ecosystem/action-get-latest-tag@v1
+
+    - name:  Determine Version Bump Type
+      id: determine-bump-type
+      run: |
+        echo "level=patch" >> $GITHUB_ENV
+        if git log -1 --pretty=%B | grep -q 'bump: major'; then
+          echo "level=major" >> $GITHUB_ENV
+        elif git log -1 --pretty=%B | grep -q 'bump: minor'; then
+          echo "level=minor" >> $GITHUB_ENV
+
     - name: Set up Python 3.12
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v5
       with:
         python-version: ${{matrix.version}}
+
     - name: Install dependencies with pip-compile tool
       run: |
         python -m pip install --upgrade pip
@@ -39,25 +56,83 @@ jobs:
         pip-compile requirements.in
         pip install flake8 pytest
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: docker build application image
+    
+    - name: Setup Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Add Registry to /etc/hosts
       run: |
-        docker build --build-arg version_number=$DOCKER_IMG_VERSION -t $DOCKER_USER/$DOCKER_IMG_NAME$DOCKER_IMG_VERSION .
+        echo "${{secrets.HOSTS_ENTRY }}" | sudo tee -a /etc/hosts
+
+    - name: Log in to Docker Registry
+      uses: docker/login-action@v3
+      with:
+        registry: docker.io
+        username: $DOCKER_USER
+        password: $DOCKER_PASS
+      
+    - name: Generate Date-Time-Based Tag
+      id: generate_tag
+      run: |
+        new_version=$(date -u +"v%Y.%m.%d.%H%M%S")
+        echo "generated tag: $new_version"
+        echo "version=$version" >> $GITHUB_ENV
+    
+    - name: Configure Git for SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_DEV_SERVER_CONTABO }}" > ~/.ssh/id_ed25519
+        chmod 600 ~/.ssh/id_ed25519
+        ssh-keyscan github.com >> ~/.ssh/known_hosts || true
+        git config --global user.name "mentally-gamez-soft"
+        git config --global user.email "mentally.gamez.soft@gmail.com"
+        echo "IdentityFile ~/.ssh/id_ed25519" >> ~/.ssh/config
+        chmod 600 ~/.ssh/config
+
+    - name: Change Remote to SSH and Push
+      run: |
+        git remote set-url origin git@github.com:${{ github.repository }}.git
+        git tag -a "${{ env.version }}" -m "Release ${GITHUB_REF} at ${GITHUB_SHA}"
+        git push origin "${{ env.version }}"
+
+    - name: Build Docker Image
+      run: |
+        # Extract the repository name from the github.repository context
+        PROJECT_NAME=$(echo "${GITHUB_REPOSITORY}" | cut -d'/' -f2)
+        echo "Project Name: $PROJECT_NAME"
+        docker build -f .docker/Dockerfile -t docker.io/$DOCKER_USER/$DOCKER_IMG_NAME${{ env.version }} .
       env:
-        DOCKER_IMG_VERSION: 0.0.1c
-    - name: docker login
+        GITHUB_REPOSITORY: ${{ github.repository }}
+
+    - name: Push Docker Image
       run: |
-        docker login -u $DOCKER_USER -p $DOCKER_PASS
-    - name: docker push application image
-      run: |
-        docker push $DOCKER_USER/$DOCKER_IMG_NAME$DOCKER_IMG_VERSION   
+        # Extract the repository name from the github.repository context
+        PROJECT_NAME=$(echo "${GITHUB_REPOSITORY}" | cut -d'/' -f2)
+        echo "Project Name: $PROJECT_NAME"
+        docker push docker.io/$DOCKER_USER/$DOCKER_IMG_NAME${{ env.version }}       
       env:
-          DOCKER_IMG_VERSION: 0.0.1c  
+        GITHUB_REPOSITORY: ${{ github.repository }}
+    # - name: docker build application image
+    #   run: |
+    #     docker build --build-arg version_number=$DOCKER_IMG_VERSION -t $DOCKER_USER/$DOCKER_IMG_NAME$DOCKER_IMG_VERSION .
+    #   env:
+    #     DOCKER_IMG_VERSION: 0.0.1c
+    # - name: docker login
+    #   run: |
+    #     docker login -u $DOCKER_USER -p $DOCKER_PASS
+    # - name: docker push application image
+    #   run: |
+    #     docker push $DOCKER_USER/$DOCKER_IMG_NAME$DOCKER_IMG_VERSION   
+    #   env:
+    #       DOCKER_IMG_VERSION: 0.0.1c  
+
   deploy-staging:
     name: deploy application to staging environment
     runs-on: ${{matrix.os}}
@@ -72,18 +147,32 @@ jobs:
     needs: build
     environment: staging
     steps:
-      - name: deploy application image on staging environment
+      - name: Deploy to remote server staging
+        if: success()
+        env:
+          SSH_HOST: ${{ secrets.SERVER_HOSTNAME_INTEG }}
+          SSH_USERNAME: ${{ secrets.SERVER_ADMIN_INTEG }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_DEV_SERVER_CONTABO }}
+          DEPLOY_COMMANDS: ${{ secrets.DEPLOY_COMMANDS }}
         run: |
-          echo "${{ secrets.SSH_DEV_SERVER_CONTABO }}" > ~/work/_temp/dev_server_rsa
-          chmod 400 ~/work/_temp/dev_server_rsa
-          ssh -o StrictHostKeyChecking=no -i ~/work/_temp/dev_server_rsa ${{secrets.SERVER_ADMIN_INTEG}}@${{secrets.SERVER_HOSTNAME_INTEG}} "
-            docker login -u $DOCKER_USER -p $DOCKER_PASS && 
-            source .profile &&
-            cd $PASSWORD_SCORING_APP &&
-            ./stop_container.sh &&
-            ./start_container.sh"
-          rm -f ~/work/_temp/dev_server_rsa
-          rm -rf ~/work/_temp
+          echo "${SSH_PRIVATE_KEY}" > /tmp/private_key
+          chmod 600 
+          ssh -o StrictHostKeyChecking=no -i /tmp/private_key ${SSH_USERNAME}@${SSH_HOST} "${DEPLOY_COMMANDS}"
+          rm -f /tmp/private_key
+          rm -rf /tmp
+        shell: bash
+      # - name: deploy application image on staging environment
+      #   run: |
+      #     echo "${{ secrets.SSH_DEV_SERVER_CONTABO }}" > ~/work/_temp/dev_server_rsa
+      #     chmod 400 ~/work/_temp/dev_server_rsa
+      #     ssh -o StrictHostKeyChecking=no -i ~/work/_temp/dev_server_rsa ${{secrets.SERVER_ADMIN_INTEG}}@${{secrets.SERVER_HOSTNAME_INTEG}} "
+      #       docker login -u $DOCKER_USER -p $DOCKER_PASS && 
+      #       source .profile &&
+      #       cd $PASSWORD_SCORING_APP &&
+      #       ./stop_container.sh &&
+      #       ./start_container.sh"
+      #     rm -f ~/work/_temp/dev_server_rsa
+      #     rm -rf ~/work/_temp
 
   create-release:
     name: Create release
