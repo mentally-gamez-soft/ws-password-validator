@@ -17,6 +17,7 @@ jobs:
 
     runs-on: ${{matrix.os}}
     env:
+      version: "0.0.1j"
       APPLICATION_NAME: ":ws-password-scoring-"
       DOCKER_USER: ${{secrets.DOCKER_USERNAME}}
       DOCKER_PASS: ${{secrets.DOCKER_PASSWORD}}
