@@ -155,25 +155,25 @@ jobs:
           SSH_USERNAME: ${{ secrets.SERVER_ADMIN_INTEG }}
           SSH_PRIVATE_KEY: ${{ secrets.SSH_DEV_SERVER_CONTABO }}
           DEPLOY_COMMANDS: ${{ secrets.DEPLOY_COMMANDS }}
-        run: |
-          echo "${SSH_PRIVATE_KEY}" > /tmp/private_key
-          chmod 600 /tmp/private_key
-          ssh -o StrictHostKeyChecking=no -i /tmp/private_key ${SSH_USERNAME}@${SSH_HOST} "${DEPLOY_COMMANDS}"
-          rm -f /tmp/private_key
-          rm -rf /tmp
+        # run: |
+        #   echo "${SSH_PRIVATE_KEY}" > /tmp/private_key
+        #   chmod 600 /tmp/private_key
+        #   ssh -o StrictHostKeyChecking=no -i /tmp/private_key ${SSH_USERNAME}@${SSH_HOST} "${DEPLOY_COMMANDS}"
+        #   rm -f /tmp/private_key
+        #   rm -rf /tmp
         shell: bash
       # - name: deploy application image on staging environment
-      #   run: |
-      #     echo "${{ secrets.SSH_DEV_SERVER_CONTABO }}" > ~/work/_temp/dev_server_rsa
-      #     chmod 400 ~/work/_temp/dev_server_rsa
-      #     ssh -o StrictHostKeyChecking=no -i ~/work/_temp/dev_server_rsa ${{secrets.SERVER_ADMIN_INTEG}}@${{secrets.SERVER_HOSTNAME_INTEG}} "
-      #       docker login -u $DOCKER_USER -p $DOCKER_PASS && 
-      #       source .profile &&
-      #       cd $PASSWORD_SCORING_APP &&
-      #       ./stop_container.sh &&
-      #       ./start_container.sh"
-      #     rm -f ~/work/_temp/dev_server_rsa
-      #     rm -rf ~/work/_temp
+        run: |
+          echo "${{ secrets.SSH_DEV_SERVER_CONTABO }}" > ~/work/_temp/dev_server_rsa
+          chmod 400 ~/work/_temp/dev_server_rsa
+          ssh -o StrictHostKeyChecking=no -i ~/work/_temp/dev_server_rsa ${{secrets.SERVER_ADMIN_INTEG}}@${{secrets.SERVER_HOSTNAME_INTEG}} "
+            docker login -u ${{secrets.DOCKER_USERNAME}} -p ${{secrets.DOCKER_PASSWORD}} && 
+            source .profile &&
+            cd ${{secrets.PASSWORD_SCORING_APP}} &&
+            ./stop_container.sh &&
+            ./start_container.sh"
+          rm -f ~/work/_temp/dev_server_rsa
+          rm -rf ~/work/_temp
 
   create-release:
     name: Create release
