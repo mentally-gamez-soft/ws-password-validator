@@ -157,7 +157,7 @@ jobs:
           DEPLOY_COMMANDS: ${{ secrets.DEPLOY_COMMANDS }}
         run: |
           echo "${SSH_PRIVATE_KEY}" > /tmp/private_key
-          chmod 600 
+          chmod 600 /tmp/private_key
           ssh -o StrictHostKeyChecking=no -i /tmp/private_key ${SSH_USERNAME}@${SSH_HOST} "${DEPLOY_COMMANDS}"
           rm -f /tmp/private_key
           rm -rf /tmp
