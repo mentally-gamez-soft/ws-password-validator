@@ -108,7 +108,7 @@ jobs:
         # Extract the repository name from the github.repository context
         PROJECT_NAME=$(echo "${GITHUB_REPOSITORY}" | cut -d'/' -f2)
         echo "Project Name: $PROJECT_NAME"
-        docker build --build-arg version_number=${{ env.version }} -f .docker/Dockerfile -t $DOCKER_USER/$DOCKER_IMG_NAME${{ env.version }} .
+        docker build --build-arg version_number=${{ env.version }} -f .docker/Dockerfile -t ${{secrets.DOCKER_USERNAME}}/${{secrets.DOCKER_IMAGE_NAME}}:ws-password-scoring-${{ env.version }} .
       env:
         GITHUB_REPOSITORY: ${{ github.repository }}
 
