@@ -97,11 +97,11 @@ jobs:
         echo "IdentityFile ~/.ssh/id_ed25519" >> ~/.ssh/config
         chmod 600 ~/.ssh/config
 
-    - name: Change Remote to SSH and Push
-      run: |
-        git remote set-url origin git@github.com:${{ github.repository }}.git
-        git tag -a "${{ env.version }}" -m "Release ${GITHUB_REF} at ${GITHUB_SHA}"
-        git push origin "${{ env.version }}"
+    # - name: Change Remote to SSH and Push
+    #   run: |
+    #     git remote set-url origin git@github.com:${{ github.repository }}.git
+    #     git tag -a "${{ env.version }}" -m "Release ${GITHUB_REF} at ${GITHUB_SHA}"
+    #     git push origin "${{ env.version }}"
 
     - name: Build Docker Image
       run: |
