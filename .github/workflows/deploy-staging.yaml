@@ -169,7 +169,7 @@ jobs:
           ssh -o StrictHostKeyChecking=no -i ~/work/_temp/dev_server_rsa ${{secrets.SERVER_ADMIN_INTEG}}@${{secrets.SERVER_HOSTNAME_INTEG}} "
             docker login -u ${{secrets.DOCKER_USERNAME}} -p ${{secrets.DOCKER_PASSWORD}} && 
             source .profile &&
-            cd ${{secrets.PASSWORD_SCORING_APP}} &&
+            cd ${{vars.DELIVERY_PATH}} &&
             ./stop_container.sh &&
             ./start_container.sh"
           rm -f ~/work/_temp/dev_server_rsa
