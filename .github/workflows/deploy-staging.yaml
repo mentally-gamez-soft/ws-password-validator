@@ -23,6 +23,7 @@ jobs:
       DOCKER_PASS: ${{secrets.DOCKER_PASSWORD}}
       DOCKER_IMG_NAME: ${{secrets.DOCKER_IMAGE_NAME}}:ws-password-scoring-
       PASSWORD_SCORING_APP: ${{secrets.PASSWORD_SCORING_APP}}
+      MAKE_ENVIR: ${{ github.ref == 'refs/heads/main' && 'prod' || github.ref == 'refs/heads/staging' && 'staging' || 'dev' }}
     strategy:
       matrix:
         os: [ubuntu-latest]
@@ -108,7 +109,7 @@ jobs:
         # Extract the repository name from the github.repository context
         PROJECT_NAME=$(echo "${GITHUB_REPOSITORY}" | cut -d'/' -f2)
         echo "Project Name: $PROJECT_NAME"
-        docker build --build-arg version_number=${{ env.version }} -f Dockerfile -t ${{secrets.DOCKER_USERNAME}}/${{secrets.DOCKER_IMAGE_NAME}}:ws-password-scoring-${{ env.version }} .
+        docker build --build-arg version_number=${{ env.version }} -f Dockerfile -t ${{secrets.DOCKER_USERNAME}}/${{env.DOCKER_IMG_NAME}}${{env.MAKE_ENVIR}}-${{ env.version }} .
       env:
         GITHUB_REPOSITORY: ${{ github.repository }}
 
@@ -117,7 +118,7 @@ jobs:
         # Extract the repository name from the github.repository context
         PROJECT_NAME=$(echo "${GITHUB_REPOSITORY}" | cut -d'/' -f2)
         echo "Project Name: $PROJECT_NAME"
-        docker push ${{secrets.DOCKER_USERNAME}}/${{secrets.DOCKER_IMAGE_NAME}}:ws-password-scoring-${{ env.version }}       
+        docker push ${{secrets.DOCKER_USERNAME}}/${{env.DOCKER_IMG_NAME}}${{env.MAKE_ENVIR}}-${{ env.version }}       
       env:
         GITHUB_REPOSITORY: ${{ github.repository }}
     # - name: docker build application image
